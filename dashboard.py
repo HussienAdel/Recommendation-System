@@ -119,7 +119,7 @@ app.layout = html.Div([
     
     html.H1(children='Recommendation System for Movies!', style={'textAlign': 'center', 'color':'blue', 'font-size':'40px'}),
     html.H1(children='Select the desired User ID', style={'textAlign': 'left', 'color':'black'}),
-    dcc.Dropdown(ratings.userId.unique(), value=35, id='dropdown-selection-userId'),
+    dcc.Dropdown(ratings.userId.unique(), value=35, id='dropdown-selection-userId'),# placeholder="Select User ID", if we don't use value=---, to guide the user.
     dcc.Graph(id='user-list'),
     html.H1(children='Select the desired Movie', style={'textAlign': 'left', 'color':'black'}),
     dcc.Dropdown(movies.title.unique(), value='Toy Story (1995)',id='dropdown-selection-movie-title'),
@@ -131,23 +131,31 @@ app.layout = html.Div([
     ], style={'display': 'flex', 'justify-content': 'space-between'}),
     html.Div([
         html.Div([
-            
+            html.H1(children='Select the \'User ID\' and \'Movie Title\' to see the Rating', style={'textAlign': 'left', 'color':'black'}),
             dcc.Dropdown(ratings.userId.unique(), value=35, id='dropdown-selection-userId-2'),
             dcc.Dropdown(movies.title.unique(), value='Toy Story (1995)', id='dropdown-selection-movie-title-2'),
-            dcc.Graph(id="user-rate", style={'width': '20%'})
-
-        ], style={'flex': 1, 'padding': '10px'}),  # Add flex and padding styles
-
-        html.Div([
+            #dcc.Graph(id="user-rate")
             
+            html.Div([dcc.Graph(id="user-rate")], style={'display': 'flex', 'justify-content': 'center' })# Center the chart within its container
+            # I make the "user-rate" graph in a separate Div, to make it the center of it space.
+
+        ], style={'flex': '0 0 40%', 'padding': '10px'}),  # 'flex=1' to make each thing in this Div takes the same space
+        
+        # The 'flex' property in CSS Flexbox is a shorthand for three properties: 'flex-grow', 'flex-shrink', and 'flex-basis'. 
+        #'flex-grow': Defines the ability of a flex item to grow relative to other flex items when there is extra space in the flex container.
+        #'flex-shrink':  Defines the ability of a flex item to shrink relative to other flex items when there is not enough space in the flex container.
+        #'flex-basis': Defines the initial size of the flex item before any space distribution happens.
+    
+      
+        html.Div([
+            html.H1(children='Select the \'User ID\' to see the Recommended Movies', style={'textAlign': 'center', 'color':'black'}),
             dcc.Dropdown(ratings.userId.unique(), value=35, id='dropdown-selection-userId-3') ,
             dcc.Loading(dcc.Graph(id="recommended-movies"), type="cube")
                  
-        ], style={'flex': 1, 'padding': '10px'})  # Add flex and padding styles
+        ], style={'flex': '0 0 60%', 'padding': '10px'})  # 'flex=1' to make each thing in this Div takes the same space
         
-    ], style={'display': 'flex', 'flexDirection': 'row'})  # Use flexbox to align divs side by side
+    ], style={'display': 'flex', 'justify-content': 'space-between'})  # Use flexbox to align divs side by side
 
-    
 ])
 
 @app.callback(
@@ -169,7 +177,7 @@ def update_user_movie_list(userId):
         orientation='h',  # Horizontal bars
         color='rating',  # Color bars by rating
         color_continuous_scale=px.colors.sequential.Plasma,  # Color scale
-        title=f"Ratings of User {userId} for Each Movie - (the number of movies he watched is {len(df)})"
+        title=f"Ratings of User {userId} for Each Movie He Watched- (the number of movies he watched is {len(df)})"
     )
     
     # Update layout to maximize the figure and ensure all titles are visible
@@ -222,6 +230,7 @@ def update_movie_figure(title):
         '''
     df2 = gb.merge(movies, on='movieId')
     df2 = df2[df2.index == movieId]   
+    df2['mean'] = df2['mean'].apply(lambda x: round(x, 1))
      
     fig2 = px.bar(
     df2,
@@ -262,11 +271,12 @@ def update_user_rating_graph(userId, title):
     
     state, rate = recommender(userId=userId, movieId=get_movieId(title), type='knn')
     df = pd.DataFrame({'title': [title], 'state': [state], 'rate': [rate]})
+    df['rate'] = df['rate'].apply(lambda x: round(x, 1))
     
 
-    fig = px.bar(df, x='title', y='rate', color='state', width=380, height=500)
+    fig = px.bar(df, x='title', y='rate', labels={'title':'Movie Title', 'rate':'Rating'}, color='state', width=380, height=500)
     fig.update_yaxes(range=[0, 5])
-
+    
 
     return fig
 
@@ -282,15 +292,19 @@ def update_recommended_movies(userId):
     
     
     movie_ids = [list(movie.keys())[0] for movie in reco_movies]
-    ratings = [list(movie.values())[0][1] for movie in reco_movies]
+    ratings = [round(list(movie.values())[0][1], 1) for movie in reco_movies]
     statuses = [list(movie.values())[0][0] for movie in reco_movies]
+    
+    '''
+    The round() function is used to round the extracted rating value to one decimal place. 
+    The first argument is the number to be rounded, and the second argument (1) specifies the number of decimal places.
+    4.67 -> 4.7,  4.62 -> 4.6,and 6.65 -> 6.7
+    '''
     
     titles = [movie_details(movieId)[0] for movieId in movie_ids]
     genres = [movie_details(movieId)[1] for movieId in movie_ids]
     
 
-    # Define colors based on the status
-    colors = ['green' if status == 'good' else 'red' for status in statuses]
 
     # Create the bar chart
     fig = px.bar(
@@ -317,17 +331,7 @@ def update_recommended_movies(userId):
 
 
 
-    
-'''
-    # Update layout to maximize the figure and ensure all titles are visible
-    fig.update_layout(
-        height=800,  # Increase the height of the figure
-        margin=dict(l=200, r=20, t=60, b=40),  # Adjust margins; l=left, r=right, t=top, b=bottom
-        yaxis=dict(tickmode='linear'),  # Ensures all y-axis labels (movie titles) are shown
-        plot_bgcolor='white',  # Background of the plot
-        paper_bgcolor='white',  # Background of the entire figure
-    )
-'''
+  
 
 if __name__ == '__main__':
     app.run_server(debug=True, port=8051)
